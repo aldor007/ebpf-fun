@@ -11,9 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -88,7 +85,6 @@ func main() {
 
 	stopper := make(chan os.Signal, 1)
 	signal.Notify(stopper, os.Interrupt, syscall.SIGTERM)
-	scan := sync.Map{}
 
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -168,43 +164,6 @@ func main() {
 	}()
 	log.Printf("Listening for events..")
 
-	go func() {
-		for {
-
-			keysToDelete := make([]interface{}, 0)
-			scan.Range(func(key, value interface{}) bool {
-				sdArr := value.(map[uint16]ScanData)
-				afterMinuteCounter := 0
-				lenScans := len(sdArr)
-				if lenScans > 3 {
-					ports := make([]string, 0)
-					var localIP string
-					for port, sd := range sdArr {
-						if (time.Now().Sub(sd.ScanTime).Seconds()) < 60 {
-							ports = append(ports, strconv.FormatUint(uint64(port), 10))
-							localIP = intToIP(sd.Event.DAddr).String()
-						} else {
-							afterMinuteCounter++
-						}
-					}
-					if len(ports) > 3 {
-						log.Printf("Port scan deteced: %s -> %s on ports %s \n", (key).(string), localIP, strings.Join(ports, ","))
-					}
-
-				}
-				if afterMinuteCounter == lenScans {
-					keysToDelete = append(keysToDelete, key)
-				}
-				return true
-			})
-
-			time.Sleep(10 * time.Second)
-
-			for _, key := range keysToDelete {
-				scan.Delete(key)
-			}
-		}
-	}()
 	var event Event
 	for {
 		record, err := rd.Read()
@@ -226,21 +185,7 @@ func main() {
 			log.Println("parse error", err)
 		}
 
-		scanKey := intToIP(event.SAddr).String()
-		sd := ScanData{}
-		sd.Event = event
-		sd.ScanTime = time.Now()
 		log.Printf("New connection: %s:%d -> %s:%d \n", intToIP(event.SAddr).String(), event.SPort, intToIP(event.DAddr).String(), event.DPort)
-		if v, ok := scan.Load(scanKey); ok {
-			sdArr := v.(map[uint16]ScanData)
-			sdArr[event.DPort] = sd
-			scan.Store(scanKey, sdArr)
-		} else {
-			sdArr := make(map[uint16]ScanData)
-			sdArr[event.DPort] = sd
-			scan.Store(scanKey, sdArr)
-		}
-
 	}
 
 }
