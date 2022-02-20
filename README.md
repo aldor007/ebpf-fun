@@ -46,3 +46,4 @@ make up
 * https://github.com/xdp-project/xdp-tutorial - XDP tutorials C user-space code
 * https://github.com/cilium/ebpf - golang lib 
 * https://github.com/cilium/ebpf/tree/master/examples - examples from you can start writing you own eBPF app 
+* https://gist.github.com/yunazuno/6227bd7e7b8382d2d11b44baed1a94f9 - XDP traffic block
